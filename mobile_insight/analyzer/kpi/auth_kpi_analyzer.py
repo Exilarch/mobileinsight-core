@@ -129,8 +129,17 @@ class AuthKpiAnalyzer(KpiAnalyzer):
 										if proto.get('name') == 'nas-eps':
 												for field in proto.iter('field'):
 														if field.get('name') == "nas_eps.nas_msg_emm_type":
+																# TAU reject
+																if field.get('show') == '75':
+																	self.pending_TAU = False
+																# service reject
+																if field.get('show') == '78':
+																	self.pending_service = False
+																# service accept
+																elif field.get('show') == '79':
+																	self.pending_service = False
 																# showing '82' indicates Auth request, referring to http://niviuk.free.fr/lte_nas.php
-																if field.get('show') == "82":
+																elif field.get('show') == "82":
 																		self.kpi_measurements['total_number']['TOTAL'] += 1
 																		self.store_kpi("KPI_Accessibility_AUTH_REQ",
 																									 self.kpi_measurements['total_number'], log_item_dict['timestamp'])
@@ -206,33 +215,43 @@ class AuthKpiAnalyzer(KpiAnalyzer):
 								# ET.dump(log_xml)
 								for field in log_xml.iter('field'):
 										if field.get('name') == "nas_eps.nas_msg_emm_type":
-												if field.get('show') == '83':
-													self.pending_auth = False
-													self.pending_TAU = False
-													self.pending_service = False
-													self.timeouts = 0
-													self.auth_timestamp = None
+											# TAU request
+											if field.get('show') == '72' and not self.pending_auth:
+											  	self.pending_TAU = True
+											# TAU complete
+											elif field.get('show') == '74':
+												self.pending_TAU = False
+											# Auth response
+											elif field.get('show') == '83':
+												self.pending_auth = False
+												self.pending_TAU = False
+												self.pending_service = False
+												self.timeouts = 0
+												self.auth_timestamp = None
 												# '92' indicates Auth failure
-												if field.get('show') == '92':
-													for child_field in log_xml.iter('field'):
-															if child_field.get('name') == 'nas_eps.emm.cause':
-																	cause_idx = str(child_field.get('show'))
-																	if cause_idx == '20':
-																		self.kpi_measurements['failure_number']['MAC'] += 1
-																		self.store_kpi("KPI_Retainability_AUTH_MAC_FAILURE", str(self.kpi_measurements['failure_number']['MAC']), log_item_dict['timestamp'])
-																	elif cause_idx == '21':
-																		self.kpi_measurements['failure_number']['SYNCH'] += 1
-																		self.store_kpi("KPI_Retainability_AUTH_SYNCH_FAILURE", str(self.kpi_measurements['failure_number']['SYNCH']), log_item_dict['timestamp'])
-																	elif cause_idx == '26':
-																		self.kpi_measurements['failure_number']['NON_EPS'] += 1
-																		self.store_kpi("KPI_Retainability_AUTH_NON_EPS_FAILURE", str(self.kpi_measurements['failure_number']['NON_EPS']), log_item_dict['timestamp'])
-																	else:
-																			self.log_warning("Unknown EMM cause: " + cause_idx)
-													self.pending_auth = False
-													self.pending_TAU = False
-													self.pending_service = False
-													self.timeouts = 0
-													self.auth_timestamp = None
+											elif field.get('show') == '92':
+												for child_field in log_xml.iter('field'):
+														if child_field.get('name') == 'nas_eps.emm.cause':
+																cause_idx = str(child_field.get('show'))
+																if cause_idx == '20':
+																	self.kpi_measurements['failure_number']['MAC'] += 1
+																	self.store_kpi("KPI_Retainability_AUTH_MAC_FAILURE", str(self.kpi_measurements['failure_number']['MAC']), log_item_dict['timestamp'])
+																elif cause_idx == '21':
+																	self.kpi_measurements['failure_number']['SYNCH'] += 1
+																	self.store_kpi("KPI_Retainability_AUTH_SYNCH_FAILURE", str(self.kpi_measurements['failure_number']['SYNCH']), log_item_dict['timestamp'])
+																elif cause_idx == '26':
+																	self.kpi_measurements['failure_number']['NON_EPS'] += 1
+																	self.store_kpi("KPI_Retainability_AUTH_NON_EPS_FAILURE", str(self.kpi_measurements['failure_number']['NON_EPS']), log_item_dict['timestamp'])
+																else:
+																		self.log_warning("Unknown EMM cause: " + cause_idx)
+												self.pending_auth = False
+												self.pending_TAU = False
+												self.pending_service = False
+												self.timeouts = 0
+												self.auth_timestamp = None
+											# service request
+											elif field.get('show') == '255' and not self.pending_auth:
+												self.pending_service = True
 
 				return 0
 

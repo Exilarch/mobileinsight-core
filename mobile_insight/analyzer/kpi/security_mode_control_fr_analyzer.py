@@ -60,7 +60,17 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                 for proto in log_xml.iter('proto'):
                     if proto.get('name') == 'nas-eps':
                         for field in proto.iter('field'):
-                                if field.get('show') == '93':
+                                # TAU reject
+                                if field.get('show') == '75':
+                                    self.pending_TAU = False
+                                # service reject
+                                elif field.get('show') == '78':
+                                    self.pending_service = False
+                                # service accept
+                                elif field.get('show') == '79':
+                                    self.pending_service = False
+                                # sec mode request
+                                elif field.get('show') == '93':
                                     if self.pending_security_mode and self.pending_service:
                                         if self.security_mode_timestamp:
                                             delta = (log_item_dict['timestamp'] - self.security_mode_timestamp).total_seconds()
@@ -102,10 +112,6 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                                     self.security_mode_timestamp = log_item_dict['timestamp']
                                     self.pending_security_mode = True
                                     self.prev_log = log_xml
-                                elif field.get('show') == '73' or field.get('show') == '75':
-                                    self.pending_TAU = False
-                                elif field.get('show') == '78' or field.get('show') == '79':
-                                    self.pending_service = False
         elif msg.type_id == "LTE_NAS_EMM_OTA_Outgoing_Packet":
             log_item = msg.data.decode()
             log_item_dict = dict(log_item)
@@ -119,7 +125,6 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                                     if self.security_mode_timestamp:
                                         delta = (log_item_dict['timestamp'] - self.security_mode_timestamp).total_seconds()
                                         if 0 <= delta <= self.threshold:
-                                            print("SEC collision")
                                             self.kpi_measurements['failure_number']['COLLISION'] += 1
                                             self.store_kpi("KPI_Accessibility_SECURITY_COLLISION_FAILURE", str(self.kpi_measurements['failure_number']['COLLISION']), log_item_dict['timestamp'])
                                             self.pending_security_mode = False
@@ -127,7 +132,7 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                                             self.pending_TAU = False
                                             self.prev_log = None
                                             self.timeouts = 0
-                                if field.get('show') == '72':
+                                if field.get('show') == '72' and not self.pending_security_mode:
                                     self.pending_TAU = True
                             elif field.get('show') == '69':
                                 if self.pending_security_mode:
@@ -136,7 +141,6 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                                         if 0 <= delta <= self.threshold:
                                             for subfield in log_xml.iter("field"):
                                                 if subfield.get("showname") and "Switch off" not in subfield.get("showname"):
-                                                    print("SEC collision")
                                                     self.kpi_measurements['failure_number']['COLLISION'] += 1
                                                     self.store_kpi("KPI_Accessibility_SECURITY_COLLISION_FAILURE", str(self.kpi_measurements['failure_number']['COLLISION']), log_item_dict['timestamp'])
                                                     self.pending_security_mode = False
@@ -144,6 +148,9 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                                                     self.pending_TAU = False
                                                     self.prev_log = None
                                                     self.timeouts = 0
+                            # TAU complete
+                            elif field.get('show') == '74':
+                                self.pending_TAU = False
                             # Security mode complete
                             elif field.get('show') == '94':
                                 self.pending_security_mode = False
@@ -158,7 +165,8 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                                 self.pending_TAU = False
                                 self.prev_log = None
                                 self.timeouts = 0
-                            elif field.get('show') == '255':
+                            # Service request
+                            elif field.get('show') == '255' and not self.pending_security_mode:
                                 self.pending_service = True
 
         return 0

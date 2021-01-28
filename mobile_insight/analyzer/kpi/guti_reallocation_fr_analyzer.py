@@ -68,7 +68,6 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
                                         else:
                                             self.timeouts = 0
                                     if self.timeouts == 5:
-                                        print("GUTI Timeout!")
                                         self.kpi_measurements['failure_number']['TIMEOUT'] += 1
                                         self.store_kpi("KPI_Accessibility_GUTI_TIMEOUT_FAILURE", str(self.kpi_measurements['failure_number']['TIMEOUT']), log_item_dict['timestamp'])
                                         self.pending_guti = False
@@ -90,12 +89,12 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
                                     if self.guti_timestamp:
                                         delta = (log_item_dict['timestamp'] - self.guti_timestamp).total_seconds()
                                         if 0 <= delta <= self.threshold:
-                                            print("GUTI collision")
                                             self.kpi_measurements['failure_number']['COLLISION'] += 1
                                             self.store_kpi("KPI_Accessibility_GUTI_COLLISION_FAILURE", str(self.kpi_measurements['failure_number']['COLLISION']), log_item_dict['timestamp'])
                                             self.pending_guti = False
                                             self.prev_log = None
                                             self.timeouts = 0
+                            # GUTI complete
                             elif field.get('show') == '81':
                                 self.pending_guti = False
                                 self.prev_log = None
