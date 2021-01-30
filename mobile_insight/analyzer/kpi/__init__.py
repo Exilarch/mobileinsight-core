@@ -10,6 +10,7 @@ __all__ = [
 		"SecurityModeControlFrAnalyzer",
         "DedicatedBearerSrAnalyzer",
 		"TauSrAnalyzer",
+		"DetachAnalyzer",
 		"ServiceReqSrAnalyzer",
 		"IpDlTputAnalyzer",
 	    "RrcConfigAnalyzer",
@@ -36,6 +37,7 @@ from .guti_reallocation_fr_analyzer import GutiReallocationFrAnalyzer
 from .security_mode_control_fr_analyzer import SecurityModeControlFrAnalyzer
 from .dedicated_bearer_sr_analyzer import DedicatedBearerSrAnalyzer
 from .tau_sr_analyzer import TauSrAnalyzer
+from .detach_analyzer import DetachAnalyzer
 from .service_req_sr_analyzer import ServiceReqSrAnalyzer
 from .ip_dl_tput_analyzer import IpDlTputAnalyzer
 from .rrc_config_analyzer import RrcConfigAnalyzer
