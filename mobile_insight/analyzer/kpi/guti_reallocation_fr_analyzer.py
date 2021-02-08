@@ -2,7 +2,10 @@
 # Filename: guti_reallocation_fr_analyzer.py
 """
 guti_reallocation_fr_analyzer.py
-An KPI analyzer to monitor and manage GUTI reallocation failure rate
+A KPI analyzer to monitor and manage GUTI reallocation failure rate
+
+Author: Andrew Oeung
+
 """
 
 __all__ = ["guti_reallocation_fr_analyzer"]
@@ -15,7 +18,7 @@ from .kpi_analyzer import KpiAnalyzer
 
 class GutiReallocationFrAnalyzer(KpiAnalyzer):
     """
-    An KPI analyzer to monitor and manage GUTI reallocation failure rate
+    A KPI analyzer to monitor and manage GUTI reallocation failure rate
     """
 
     def __init__(self):
@@ -26,7 +29,7 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
         self.kpi_measurements = {'failure_number': {'TIMEOUT': 0, 'COLLISION': 0}}
 
         for kpi in self.kpi_measurements["failure_number"]:
-            self.register_kpi("Accessibility", "GUTI_" + kpi + "_FAILURE", self.__emm_sr_callback)
+            self.register_kpi("Retainability", "GUTI_" + kpi + "_FAILURE", self.__emm_sr_callback)
 
         self.guti_timestamp = None
         self.prev_log = None
@@ -49,7 +52,10 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
         source.enable_log("LTE_NAS_EMM_OTA_Outgoing_Packet")
 
     def __emm_sr_callback(self, msg):
-
+        """
+        The value for field.get('show') indicates the type of procedure for the message.
+        For more information, refer to http://niviuk.free.fr/lte_nas.php
+        """
         if msg.type_id == "LTE_NAS_EMM_OTA_Incoming_Packet":
             log_item = msg.data.decode()
             log_item_dict = dict(log_item)
@@ -62,13 +68,14 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
                                 if self.pending_guti:
                                     if self.guti_timestamp:
                                         delta = (log_item_dict['timestamp'] - self.guti_timestamp).total_seconds()
+
                                     if 0 <= delta <= self.T3450:
                                         self.timeouts += 1
                                     else:
                                         self.timeouts = 0
                                 if self.timeouts == 5:
                                     self.kpi_measurements['failure_number']['TIMEOUT'] += 1
-                                    self.store_kpi("KPI_Accessibility_GUTI_TIMEOUT_FAILURE", str(self.kpi_measurements['failure_number']['TIMEOUT']), log_item_dict['timestamp'])
+                                    self.store_kpi("KPI_Retainability_GUTI_TIMEOUT_FAILURE", str(self.kpi_measurements['failure_number']['TIMEOUT']), log_item_dict['timestamp'])
                                     self.pending_guti = False
                                     self.prev_log = None
                                     self.timeouts = 0
@@ -86,9 +93,11 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
                             if self.pending_guti:
                                 if self.guti_timestamp:
                                     delta = (log_item_dict['timestamp'] - self.guti_timestamp).total_seconds()
+                                    print("GUTI delta")
+                                    print(delta)
                                     if 0 <= delta <= self.threshold:
                                         self.kpi_measurements['failure_number']['COLLISION'] += 1
-                                        self.store_kpi("KPI_Accessibility_GUTI_COLLISION_FAILURE", str(self.kpi_measurements['failure_number']['COLLISION']), log_item_dict['timestamp'])
+                                        self.store_kpi("KPI_Retainability_GUTI_COLLISION_FAILURE", str(self.kpi_measurements['failure_number']['COLLISION']), log_item_dict['timestamp'])
                                         self.pending_guti = False
                                         self.prev_log = None
                                         self.timeouts = 0

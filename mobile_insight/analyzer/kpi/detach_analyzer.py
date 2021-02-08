@@ -2,8 +2,8 @@
 # Filename: detach_analyzer.py
 """
 detach_analyzer.py
-An KPI analyzer to monitor and manage detach procedure success rate
-Author: Zhehui Zhang
+A KPI analyzer to monitor and manage detach procedure success rate
+Author: Andrew Oeung
 """
 
 __all__ = ["DetachAnalyzer"]
@@ -40,7 +40,7 @@ EMM_cause = {'3': 'ILL_UE',
 
 class DetachAnalyzer(KpiAnalyzer):
     """
-    An KPI analyzer to monitor and manage detach failure rate
+    A KPI analyzer to monitor and manage detach failure rate
     """
 
     def __init__(self):
@@ -48,19 +48,7 @@ class DetachAnalyzer(KpiAnalyzer):
 
         self.cell_id = None
 
-        self.kpi_measurements = {'success_number': {'EMERGENCY': 0, 'NORMAL': 0, 'COMBINED': 0}, \
-                                 'total_number': {'EMERGENCY': 0, 'NORMAL': 0, 'COMBINED': 0}, \
-                                 'reject_number': {}, \
-                                 'failure_number': {'TIMEOUT': 0, 'COLLISION': 0, 'EMM': 0}}
-
-        for cause_idx in [3, 6, 7, 8] + list(range(11, 16)) + [18, 19, 22, 25, 35]:
-            self.kpi_measurements['reject_number'][EMM_cause[str(cause_idx)]] = 0
-
-        self.register_kpi("Accessibility", "DETACH_SUC", self.__emm_sr_callback,
-                          list(self.kpi_measurements['success_number'].keys()))
-        self.register_kpi("Accessibility", "DETACH_REQ", self.__emm_sr_callback,
-                          list(self.kpi_measurements['total_number'].keys()))
-        self.register_kpi("Accessibility", "DETACH_SR", self.__emm_sr_callback)
+        self.kpi_measurements = {'failure_number': {'TIMEOUT': 0, 'COLLISION': 0, 'EMM': 0}}
         
         for kpi in self.kpi_measurements["failure_number"]:
           self.register_kpi("Retainability", "DETACH_" + kpi + "_FAILURE", self.__emm_sr_callback)
@@ -72,7 +60,7 @@ class DetachAnalyzer(KpiAnalyzer):
         self.pending_detach = False
         self.prev_log = None
         self.timeouts = 0
-        self.threshold = self.T3421 + 10
+        self.threshold = 30 # Messages must be within this time threshold for certain failures
 
         # add callback function
         self.add_source_callback(self.__emm_sr_callback)
@@ -84,17 +72,9 @@ class DetachAnalyzer(KpiAnalyzer):
         :type source: trace collector
         """
         KpiAnalyzer.set_source(self,source)
-        #enable LTE EMM logs
+        # enable LTE EMM logs
         source.enable_log("LTE_NAS_EMM_OTA_Incoming_Packet")
         source.enable_log("LTE_NAS_EMM_OTA_Outgoing_Packet")
-
-    def __calculate_kpi(self):
-        for type in self.current_kpi:
-            if self.kpi_measurements['total_number'][type] != 0:
-                self.current_kpi[type] = \
-                    self.kpi_measurements['success_number'][type] / float(self.kpi_measurements['total_number'][type])
-            else:
-                self.current_kpi[type] = 0.00
 
     def __clear_counters(self):
         for key, value in self.kpi_measurements.items():
@@ -105,6 +85,10 @@ class DetachAnalyzer(KpiAnalyzer):
                     value[sub_key] = 0
 
     def __emm_sr_callback(self, msg):
+        """
+        The value for field.get('show') indicates the type of procedure for the message.
+        For more information, refer to http://niviuk.free.fr/lte_nas.php
+        """
         if msg.type_id == "LTE_NAS_EMM_OTA_Incoming_Packet":
             log_item = msg.data.decode()
             log_item_dict = dict(log_item)
@@ -121,7 +105,10 @@ class DetachAnalyzer(KpiAnalyzer):
                                         self.kpi_measurements['failure_number']['EMM'] += 1
                                         self.store_kpi('KPI_Retainability_DETACH_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
                                         self.timeouts = 0
-                                        break
+                                    else:
+                                        self.kpi_measurements['failure_number']['EMM'] += 1
+                                        self.store_kpi('KPI_Retainability_TAU_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
+                                        self.log_warning("EMM cause: " + cause_idx)
                             if self.detach_req_timestamp:
                                 delta = (log_item_dict['timestamp'] - self.detach_req_timestamp).total_seconds()
                                 if 0 <= delta <= self.threshold:

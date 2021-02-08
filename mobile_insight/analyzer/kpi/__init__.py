@@ -8,6 +8,9 @@ __all__ = [
 		"IdentificationAnalyzer",
 		"GutiReallocationFrAnalyzer",
 		"SecurityModeControlFrAnalyzer",
+		"AuthFrAnalyzer",
+		"AttachFrAnalyzer",
+		"TauFrAnalyzer",
         "DedicatedBearerSrAnalyzer",
 		"TauSrAnalyzer",
 		"DetachAnalyzer",
@@ -35,6 +38,9 @@ from .attach_sr_analyzer import AttachSrAnalyzer
 from .identification_analyzer import IdentificationAnalyzer
 from .guti_reallocation_fr_analyzer import GutiReallocationFrAnalyzer
 from .security_mode_control_fr_analyzer import SecurityModeControlFrAnalyzer
+from .auth_fr_analyzer import AuthFrAnalyzer
+from .attach_fr_analyzer import AttachFrAnalyzer
+from .tau_fr_analyzer import TauFrAnalyzer
 from .dedicated_bearer_sr_analyzer import DedicatedBearerSrAnalyzer
 from .tau_sr_analyzer import TauSrAnalyzer
 from .detach_analyzer import DetachAnalyzer

@@ -47,12 +47,14 @@ class TauSrAnalyzer(KpiAnalyzer):
 
         self.kpi_measurements = {'success_number': {'TOTAL': 0}, \
                                  'total_number': {'TOTAL': 0},\
-                                 'reject_number': {},\
-                                 'failure_number': {'CONCURRENT': 0, 'PROTOCOL_ERROR': 0, 'TIMEOUT': 0, 'DETACH': 0, 'EMM': 0}}
+                                 'reject_number': {}}
         for cause_idx in [3, 6, 7] + list(range(9, 16)) + [22, 25, 40]:
             self.kpi_measurements['reject_number'][EMM_cause[str(cause_idx)]] = 0
 
         # print self.kpi_measurements
+
+        self.tau_req_flag = False # detect if it is under request state
+        self.tau_req_timestamp = None # the timestamp for the TAU request
 
         # self.current_kpi = {'TOTAL': 0}
 
@@ -66,18 +68,8 @@ class TauSrAnalyzer(KpiAnalyzer):
         self.register_kpi("Retainability", "TAU_REJ", self.__emm_sr_callback,
                           list(self.kpi_measurements['reject_number'].keys()))
 
-        for kpi in self.kpi_measurements["failure_number"]:
-            self.register_kpi("Retainability", "TAU_" + kpi + "_FAILURE", self.__emm_sr_callback)
-
-        self.prev_log = None
-        self.T3430 = 15 # in WB-S1 mode, T3430 should be 77 seconds. Default, 15s, is assumed.
-        self.T3450 = 6 # in WB-S1 mode, T3450 should be 18 seconds. Default value, 6s, is assumed.
-        self.timeouts = 0
-        self.pending_TAU = False
-        self.accepting_TAU = False
-        self.threshold = self.T3430 + 10 # keep an internal threshold between failure messages
-        self.TAU_req_timestamp = None
-        self.TAU_accept_timestamp = None
+        # initilize kpi values
+        # self.__calculate_kpi()
 
         # add callback function
         self.add_source_callback(self.__emm_sr_callback)
@@ -111,6 +103,9 @@ class TauSrAnalyzer(KpiAnalyzer):
                     value[sub_key] = 0
 
     def __emm_sr_callback(self, msg):
+
+        # print 'log'
+
         cell_id = self.get_analyzer('TrackCellInfoAnalyzer').get_cur_cell_id()
         if cell_id != self.cell_id:
             self.cell_id = cell_id
@@ -119,222 +114,70 @@ class TauSrAnalyzer(KpiAnalyzer):
         if msg.type_id == "LTE_NAS_EMM_OTA_Incoming_Packet":
             log_item = msg.data.decode()
             log_item_dict = dict(log_item)
-            if "Msg" in log_item_dict:
-                log_xml = ET.XML(log_item_dict["Msg"])
-                for field in log_xml.iter('field'):
-                    if field.get("name") == "nas_eps.nas_msg_emm_type":
-                        if field.get('show') == '69':
-                            # Detach request to UE
-                            if self.pending_TAU and self.TAU_req_timestamp:
-                                for subfield in log_xml.iter("field"):
-                                    detach_type = ""
-                                    cause_idx = -1
-                                    if subfield.get("showname") and "re-attach" in subfield.get("showname").lower():
-                                        detach_type = subfield.get("showname").lower()
-                                    elif subfield.get('name') == 'nas_eps.emm.cause':
-                                        cause_idx = str(subfield.get('show'))
-                                # failure case. detach with these conditions
-                                if ("re-attach not required" in detach_type and cause_idx != 2) or ("re-attach required" in detach_type):
-                                    self.kpi_measurements['failure_number']['DETACH'] += 1
-                                    self.store_kpi("KPI_Retainability_TAU_DETACH_FAILURE", str(self.kpi_measurements['failure_number']['CONCURRENT']), log_item_dict['timestamp'])
-                                    self.timeouts = 0
-                                    self.pending_TAU = False
-                                    self.prev_log = None
-                                    self.TAU_req_timestamp = None
-                        elif field.get('show') == '73':
-                            print("TAU accept")
-                            if self.accepting_TAU:
-                                if self.TAU_accept_timestamp:
-                                    delta = (log_item_dict['timestamp'] - self.TAU_accept_timestamp).total_seconds()
-                                    if 0 <= delta <= self.threshold:
-                                        self.timeouts += 1
-                                    else:
-                                        self.timeouts = 0
-                                # if self.type in self.kpi_measurements['success_number']:
-                                #     self.kpi_measurements['success_number'][self.type] += 1
-                                #     self.store_kpi("KPI_Accessibility_ATTACH_SUC",
-                                #                    self.kpi_measurements['success_number'], log_item_dict['timestamp'])
-                                #     upload_dict = {
-                                #         'total_number': self.kpi_measurements['total_number'],
-                                #         'success_number': self.kpi_measurements['success_number']}
-                                    # self.upload_kpi('KPI.Accessibility.ATTACH_SR', upload_dict)
-                                # self.__calculate_kpi()
-                                # self.store_kpi("KPI_Accessibility_ATTACH_SR_" + self.type, \
-                                               # '{:.2f}'.format(self.current_kpi[self.type]), msg.timestamp)
-                            if self.timeouts == 5:
-                                self.kpi_measurements['failure_number']['TIMEOUT'] += 1
-                                self.store_kpi("KPI_Retainability_TAU_TIMEOUT_FAILURE", str(self.kpi_measurements['failure_number']['TIMEOUT']), log_item_dict['timestamp'])
-                                self.accepting_TAU = False
-                                self.prev_log = None
-                                self.timeouts = 0
-                                self.TAU_accept_timestamp = None
-                            self.accepting_TAU = True
-                            self.TAU_accept_timestamp = log_item_dict['timestamp']
-                            self.prev_log = log_xml
-                            self.pending_TAU = False
-                            self.TAU_req_timestamp = None
-                            # self.kpi_measurements['success_number']['TOTAL'] += 1
-                            # self.__calculate_kpi()
-                            # self.log_info("TAU_SR: " + str(self.kpi_measurements))
-                            # self.store_kpi("KPI_Mobility_TAU_SUC",
-                            #             self.kpi_measurements['success_number'], log_item_dict['timestamp'])
-                            # upload_dict = {
-                            #     'total_number': self.kpi_measurements['total_number']['TOTAL'],
-                            #     'success_number': self.kpi_measurements['success_number']['TOTAL']}
-                            # self.upload_kpi('KPI.Mobility.TAU_SR', upload_dict)
-                            # self.tau_req_flag = False
+            # print log_item_dict
+            if 'Msg' in log_item_dict:
+                log_xml = ET.XML(log_item_dict['Msg'])
+                # print ET.dump(log_xml)
+                for proto in log_xml.iter('proto'):
+                    if proto.get('name') == 'nas-eps':
+                        for field in proto.iter('field'):
+                            # '49' indicates Tracking area update accept
+                            if field.get('name') == 'nas_eps.nas_msg_emm_type' and field.get('value') == '49' and self.tau_req_flag:
+                                self.kpi_measurements['success_number']['TOTAL'] += 1
 
-                            # TAU latency
-                            # delta_time = (log_item_dict['timestamp']-self.tau_req_timestamp).total_seconds()
-                            # if delta_time >= 0:
-                            #     upload_dict = {'latency': delta_time}
-                            #     self.upload_kpi("KPI.Mobility.TAU_SR_LATENCY", upload_dict)
-                            # cause_idx = str(child_field.get('show'))
-                            # if cause_idx in EMM_cause:
-                            #     self.kpi_measurements['reject_number'][EMM_cause[cause_idx]] += 1
-                            #     # self.log_info("TAU_SR: " + str(self.kpi_measurements))
-                            #     self.store_kpi("KPI_Retainability_TAU_REJ",
-                            #                    self.kpi_measurements['reject_number'], log_item_dict['timestamp'])
-                            #     upload_dict = {
-                            #         'total_number': self.kpi_measurements['total_number']['TOTAL'],
-                            #         'reject_number': self.kpi_measurements['reject_number']}
-                            #     # self.upload_kpi('KPI.Retainability.RRC_AB_REL', upload_dict, log_item_dict['timestamp'])
-                            #     self.upload_kpi('KPI.Retainability.TAU_REJ', upload_dict)
-                            # else:
-                            #     self.log_warning("Unknown EMM cause for TAU reject: " + cause_idx)
-                        # Tracking area update reject
-                        elif field.get('show') == '75':
-                            print("TAU reject")
-                            for subfield in log_xml.iter('field'):
-                                if subfield.get('name') == 'nas_eps.emm.cause':
-                                    cause_idx = str(subfield.get('show'))
-                                    protocol_errors = ['96', '99', '100', '111']
-                                    normal_failures = ['3', '6', '7', '9', '10', '11', '12', '13', '14', '15', '25', '35', '40', '42']
-                                    if cause_idx in protocol_errors:
-                                        self.kpi_measurements['failure_number']['PROTOCOL_ERROR'] += 1
-                                        self.store_kpi('KPI_Retainability_TAU_PROTOCOL_ERROR_FAILURE', str(self.kpi_measurements['failure_number']['PROTOCOL_ERROR']), log_item_dict['timestamp'])
-                                    elif cause_idx == '22':
-                                        for subfield in log_xml.iter('field'):
-                                            if subfield.get('showname') and 'T3346' in subfield.get('showname'):
-                                                self.kpi_measurements['failure_number']['EMM'] += 1
-                                                self.store_kpi('KPI_Retainability_TAU_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
-                                                break
-                                    elif cause_idx not in normal_failures:
-                                        self.kpi_measurements['failure_number']['EMM'] += 1
-                                        self.store_kpi('KPI_Retainability_TAU_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
-                                    else:
-                                        self.log_warning("Unknown EMM cause: " + cause_idx)
-                            self.pending_TAU = False
-                            self.accepting_TAU = False
-                            self.TAU_req_timestamp = None
-                            self.TAU_accept_timestamp = None
-                            self.prev_log = None
-                            self.timeouts = 0
+                                # self.__calculate_kpi()
+                                # self.log_info("TAU_SR: " + str(self.kpi_measurements))
+                                self.store_kpi("KPI_Mobility_TAU_SUC",
+                                            self.kpi_measurements['success_number'], log_item_dict['timestamp'])
+                                upload_dict = {
+                                    'total_number': self.kpi_measurements['total_number']['TOTAL'],
+                                    'success_number': self.kpi_measurements['success_number']['TOTAL']}
+                                self.upload_kpi('KPI.Mobility.TAU_SR', upload_dict)
+                                self.tau_req_flag = False
+
+                                # TAU latency
+                                delta_time = (log_item_dict['timestamp']-self.tau_req_timestamp).total_seconds()
+                                if delta_time >= 0:
+                                    upload_dict = {'latency': delta_time}
+                                    self.upload_kpi("KPI.Mobility.TAU_SR_LATENCY", upload_dict)
+
+                            # '4b' indicates Tracking area update reject
+                            elif field.get('name') == 'nas_eps.nas_msg_emm_type' and field.get('value') == '4b' and self.tau_req_flag:
+                                for child_field in proto.iter('field'):
+                                    if child_field.get('name') == 'nas_eps.emm.cause':
+                                        cause_idx = str(child_field.get('show'))
+                                        if cause_idx in EMM_cause:
+                                            self.kpi_measurements['reject_number'][EMM_cause[cause_idx]] += 1
+                                            # self.log_info("TAU_SR: " + str(self.kpi_measurements))
+                                            self.store_kpi("KPI_Retainability_TAU_REJ",
+                                                           self.kpi_measurements['reject_number'], log_item_dict['timestamp'])
+                                            upload_dict = {
+                                                'total_number': self.kpi_measurements['total_number']['TOTAL'],
+                                                'reject_number': self.kpi_measurements['reject_number']}
+                                            # self.upload_kpi('KPI.Retainability.RRC_AB_REL', upload_dict, log_item_dict['timestamp'])
+                                            self.upload_kpi('KPI.Retainability.TAU_REJ', upload_dict)
+                                        else:
+                                            self.log_warning("Unknown EMM cause for TAU reject: " + cause_idx)
+                                        self.tau_req_flag = False
 
         elif msg.type_id == "LTE_NAS_EMM_OTA_Outgoing_Packet":
             log_item = msg.data.decode()
             log_item_dict = dict(log_item)
-            if "Msg" in log_item_dict:
-                log_xml = ET.XML(log_item_dict["Msg"])
-                for field in log_xml.iter('field'):
-                    if field.get("name") == "nas_eps.nas_msg_emm_type":
-                        # Detach request
-                        if field.get('show') == '69':
-                            if self.pending_TAU:
-                                # search for switch off
-                                for subfield in log_xml.iter("field"):
-                                    # failure case. detach with switch off field and pending ID.
-                                    if subfield.get("showname") and "Switch off" in subfield.get("showname"):
-                                        self.kpi_measurements["failure_number"]["DETACH"] += 1
-                                        self.store_kpi("KPI_Retainability_TAU_DETACH_FAILURE", self.kpi_measurements["failure_number"]["DETACH"], log_item_dict["timestamp"])
-                                        self.timeouts = 0
-                                        self.pending_TAU = False
-                                        self.prev_log = None
-                                        self.TAU_req_timestamp = None
-                                        self.accepting_TAU = False
-                                        self.TAU_accept_timestamp = None
-                                        break
-                        # '72' indicates Tracking Area Update request
-                        elif field.get('show') == '72':
-                            print("TAU request")
-                            if self.pending_TAU or self.accepting_TAU:
-                                delta = 0
-                                if self.pending_TAU:
-                                    delta = (log_item_dict['timestamp'] - self.TAU_req_timestamp).total_seconds()
-                                else:
-                                    delta = (log_item_dict['timestamp'] - self.TAU_accept_timestamp).total_seconds()
-                                if 0 <= delta <= self.threshold:
-                                    prev_IE = {}
-                                    curr_IE = {}
-                                    # compile information elements
-                                    for prev_field in self.prev_log.iter("field"):
-                                        if prev_field.get("name") == "nas_eps.emm.esm_msg_cont":
-                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                        elif prev_field.get("name") == "nas_eps.emm.type_of_id":
-                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                        elif prev_field.get("name") == "gsm_a.gm.gmm.ue_usage_setting":
-                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                        elif prev_field.get("show") == "EPS mobile identity":
-                                            prev_IE[prev_field.get("show")] = prev_field.get("showname")
-                                        elif prev_field.get("show") == "UE network capability":
-                                            prev_IE[prev_field.get("show")] = prev_field.get("showname")
-                                        elif prev_field.get("show") == "DRX parameter":
-                                            prev_IE[prev_field.get("show")] = prev_field.get("showname") 
-                                    for field in log_xml.iter("field"):
-                                        if field.get("name") == "nas_eps.emm.esm_msg_cont":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                        elif field.get("name") == "nas_eps.emm.type_of_id":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                        elif field.get("name") == "gsm_a.gm.gmm.ue_usage_setting":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                        elif field.get("show") == "EPS mobile identity":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                        elif field.get("show") == "UE network capability":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                        elif field.get("show") == "DRX parameter":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                    if prev_IE != curr_IE:
-                                        self.kpi_measurements['failure_number']['CONCURRENT'] += 1
-                                        self.store_kpi("KPI_Retainability_TAU_CONCURRENT_FAILURE", str(self.kpi_measurements['failure_number']['CONCURRENT']), log_item_dict['timestamp'])
-                                        self.timeouts = 0
-                                        self.pending_TAU = False
-                                        self.accepting_TAU= False
-                                        self.prev_log = None
-                                        self.TAU_accept_timestamp = None
-                                        self.TAU_req_timestamp = None
-                            if self.TAU_req_timestamp and self.pending_TAU:
-                                delta = (log_item_dict["timestamp"] - self.TAU_req_timestamp).total_seconds()
-                                if 0 <= delta <= self.threshold:
-                                    self.timeouts += 1
-                                else:
-                                    self.timeouts = 0
-                            if self.timeouts == 5:
-                                self.kpi_measurements['failure_number']['TIMEOUT'] += 1
-                                self.store_kpi("KPI_Retainability_TAU_TIMEOUT_FAILURE", str(self.kpi_measurements['failure_number']['TIMEOUT']), log_item_dict['timestamp'])
-                                self.timeouts = 0
-                                self.pending_TAU = False
-                                self.prev_log = None
-                                self.TAU_req_timestamp = None
-                                self.accepting_TAU = False
-                                self.TAU_accept_timestamp = None
-                            self.pending_TAU = True
-                            self.TAU_req_timestamp = log_item_dict['timestamp']
-                            self.prev_log = log_xml
-                            self.store_kpi("KPI_Mobility_TAU_REQ",
-                                           self.kpi_measurements['total_number'], log_item_dict['timestamp'])
-                        # '74' means Tracking Area Update complete
-                        elif field.get('show') == '74':
-                            print("TAU complete")
-                            if self.TAU_accept_timestamp:
-                                delta = (log_item_dict['timestamp'] - self.TAU_accept_timestamp).total_seconds()
-                                if 0 <= delta <= self.threshold:
-                                    self.accepting_TAU = False
-                                    self.TAU_accept_timestamp = None
-                                    self.timeouts = 0
-                                    self.prev_log = None
-                                    self.pending_TAU = False
-                                    self.TAU_req_timestamp = None
-
+            # print log_item_dict
+            if 'Msg' in log_item_dict:
+                log_xml = ET.XML(log_item_dict['Msg'])
+                # print ET.dump(log_xml)
+                for proto in log_xml.iter('proto'):
+                    if proto.get('name') == 'nas-eps':
+                        for field in proto.iter('field'):
+                            # '48' indicates Tracking area update request
+                            if field.get('name') == 'nas_eps.nas_msg_emm_type' and field.get('value') == '48':
+                                self.kpi_measurements['total_number']['TOTAL'] += 1
+                                # self.log_info("TAU_SR: " + str(self.kpi_measurements))
+                                self.tau_req_flag = True
+                                self.tau_req_timestamp = log_item_dict['timestamp']
+                                self.store_kpi("KPI_Mobility_TAU_REQ",
+                                               self.kpi_measurements['total_number'], log_item_dict['timestamp'])
 
 
 
