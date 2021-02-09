@@ -14,7 +14,8 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 from .kpi_analyzer import KpiAnalyzer 
-import os
+import datetime
+
 
 class IdentificationAnalyzer(KpiAnalyzer):
     """
@@ -40,6 +41,8 @@ class IdentificationAnalyzer(KpiAnalyzer):
         self.threshold = 30 # Messages must be within this time threshold for certain failures
         self.timeouts = 0 # number of timeouts in a row for T3470
         self.prev_attach_log = None
+        # Maintain timestamps of unfinished procedures for a potential handover failure.
+        self.handover_timestamps = {}
 
         self.add_source_callback(self.__emm_sr_callback)
 
@@ -87,13 +90,10 @@ class IdentificationAnalyzer(KpiAnalyzer):
                             self.pending_service = False
                         # '85' indicates identification request
                         if field.get("show") == "85":
-                            print("ID request")
                             # possible lower layer failure from service request -> identification
                             if self.pending_id and self.pending_service:
                                 if self.identify_req_timestamp:
                                     delta = (log_item_dict['timestamp'] - self.identify_req_timestamp).total_seconds()
-                                print("delta1")
-                                print(delta)
                                 if 0 <= delta <= self.threshold:
                                     self.kpi_measurements['failure_number']['TRANSMISSION_SERVICE'] += 1
                                     self.store_kpi("KPI_Retainability_IDENTIFY_TRANSMISSION_SERVICE_FAILURE", str(self.kpi_measurements['failure_number']['TRANSMISSION_SERVICE']), log_item_dict['timestamp'])
@@ -108,8 +108,6 @@ class IdentificationAnalyzer(KpiAnalyzer):
                             elif self.pending_id and self.pending_TAU:
                                 if self.identify_req_timestamp:
                                     delta = (log_item_dict['timestamp'] - self.identify_req_timestamp).total_seconds()
-                                print("delta2")
-                                print(delta)
                                 if 0 <= delta <= self.threshold:
                                     self.kpi_measurements['failure_number']['TRANSMISSION_TAU'] += 1
                                     self.store_kpi("KPI_Retainability_IDENTIFY_TRANSMISSION_TAU_FAILURE", str(self.kpi_measurements['failure_number']['TRANSMISSION_TAU']), log_item_dict['timestamp'])
@@ -149,7 +147,6 @@ class IdentificationAnalyzer(KpiAnalyzer):
                     if field.get("name") == "nas_eps.nas_msg_emm_type":
                         # attach request with code 65
                         if field.get('show') == '65':
-                            print("attach request")
                             # failure case. attach req with pending ID
                             if self.pending_id and not self.pending_attach:
                                 self.kpi_measurements['failure_number']['COLLISION'] += 1
@@ -217,7 +214,6 @@ class IdentificationAnalyzer(KpiAnalyzer):
                             self.prev_attach_log = None
                             self.attach_req_timestamp = None
                         if field.get('show') == '69':
-                            print("detach request")
                             if self.pending_id:
                                 # search for switch off
                                 for subfield in log_xml.iter("field"):
@@ -239,7 +235,6 @@ class IdentificationAnalyzer(KpiAnalyzer):
                             self.pending_TAU = False
                         # '86' indicates identification response
                         if field.get("show") == "86":
-                            print("ID response")
                             self.timeouts = 0
                             self.pending_id = False
                             self.identify_req_timestamp = None

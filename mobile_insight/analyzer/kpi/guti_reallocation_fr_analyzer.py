@@ -15,6 +15,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 from .kpi_analyzer import KpiAnalyzer
+import datetime
 
 class GutiReallocationFrAnalyzer(KpiAnalyzer):
     """
@@ -37,6 +38,11 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
         self.timeouts = 0
         self.pending_guti = False
         self.threshold = 30 # keep an internal threshold of 30 seconds between failure messages
+        # Maintain timestamps of unfinished procedures for a potential handover failure.
+        self.handover_timestamps = {}
+        for process in ["Identification", "Security", "GUTI", "Authentication", "Attach", "Detach", "TAU"]:
+            self.handover_timestamps[process] = datetime.datetime.min
+
         # add callback function
         self.add_source_callback(self.__emm_sr_callback)
 
@@ -64,11 +70,11 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
                 for field in log_xml.iter('field'):
                     if field.get("name") == "nas_eps.nas_msg_emm_type":
                             if field.get('show') == '80':
+                                print("GUTI request")
                                 # check for retransmit
                                 if self.pending_guti:
                                     if self.guti_timestamp:
                                         delta = (log_item_dict['timestamp'] - self.guti_timestamp).total_seconds()
-
                                     if 0 <= delta <= self.T3450:
                                         self.timeouts += 1
                                     else:
@@ -103,6 +109,7 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
                                         self.timeouts = 0
                         # GUTI complete
                         elif field.get('show') == '81':
+                            print("GUTI complete")
                             self.pending_guti = False
                             self.prev_log = None
                             self.timeouts = 0

@@ -15,7 +15,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 from .kpi_analyzer import KpiAnalyzer
-
+import datetime
 class SecurityModeControlFrAnalyzer(KpiAnalyzer):
     """
     An KPI analyzer to monitor and manage security mode control failure rate
@@ -39,6 +39,9 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
         self.pending_service = False
         self.pending_TAU = False
         self.threshold = 30 # keep an internal threshold between failure messages
+        # Maintain timestamps of unfinished procedures for a potential handover failure.
+        self.handover_timestamps = {}
+
         # add callback function
         self.add_source_callback(self.__emm_sr_callback)
 
@@ -127,8 +130,6 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                         if field.get('show') == '65' or field.get('show') == '255' or field.get('show') == '72':
                             if self.pending_security_mode:
                                 if self.security_mode_timestamp:
-                                    print("SEC delta")
-                                    print(delta)
                                     delta = (log_item_dict['timestamp'] - self.security_mode_timestamp).total_seconds()
                                     if 0 <= delta <= self.threshold:
                                         self.kpi_measurements['failure_number']['COLLISION'] += 1
@@ -143,8 +144,6 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
                         elif field.get('show') == '69':
                             if self.pending_security_mode:
                                 if self.security_mode_timestamp:
-                                    print("SEC delta")
-                                    print(delta)
                                     delta = (log_item_dict['timestamp'] - self.security_mode_timestamp).total_seconds()
                                     if 0 <= delta <= self.threshold:
                                         for subfield in log_xml.iter("field"):

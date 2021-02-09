@@ -14,6 +14,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 from .kpi_analyzer import KpiAnalyzer
+import datetime
 
 # full list refer to Table 9.9.3.9.1 in TS 24.301
 EMM_cause = {'3': 'ILL_UE',
@@ -59,7 +60,11 @@ class TauFrAnalyzer(KpiAnalyzer):
         self.threshold = 30 # Messages must be within this time threshold for certain failures
         self.TAU_req_timestamp = None
         self.TAU_accept_timestamp = None
-
+        # Maintain timestamps of unfinished procedures for a potential handover failure.
+        self.handover_timestamps = {}
+        for process in ["Identification", "Security", "GUTI", "Authentication", "Attach", "Detach", "TAU"]:
+            self.handover_timestamps[process] = datetime.datetime.min
+        
         # add callback function
         self.add_source_callback(self.__emm_sr_callback)
 

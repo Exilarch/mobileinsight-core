@@ -15,6 +15,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 from .kpi_analyzer import KpiAnalyzer
+import datetime
 
 # full list refer to Table 9.9.3.9.1 in TS 24.301
 EMM_cause = {'3': 'ILL_UE',
@@ -64,6 +65,10 @@ class AttachFrAnalyzer(KpiAnalyzer):
         self.prev_log = None
         self.timeouts = 0
         self.threshold = 30 # Messages must be within this time threshold for certain failures
+        # Maintain timestamps of unfinished procedures for a potential handover failure.
+        self.handover_timestamps = {}
+        for process in ["Identification", "Security", "GUTI", "Authentication", "Attach", "Detach", "TAU"]:
+            self.handover_timestamps[process] = datetime.datetime.min
 
         # add callback function
         self.add_source_callback(self.__emm_sr_callback)
@@ -100,7 +105,8 @@ class AttachFrAnalyzer(KpiAnalyzer):
                 for field in log_xml.iter('field'):
                     if field.get("name") == "nas_eps.nas_msg_emm_type":
                             # showing '66' indicates Attach accept, referring to http://niviuk.free.fr/lte_nas.php
-                            if field.get('show') == '66' and self.accepting_attach:
+                            if field.get('show') == '66' and self.pending_attach:
+                                print("ATT accept")
                                 if self.attach_accept_timestamp:
                                     delta = (log_item_dict['timestamp'] - self.attach_accept_timestamp).total_seconds()
                                     if 0 <= delta <= self.threshold:
@@ -121,6 +127,7 @@ class AttachFrAnalyzer(KpiAnalyzer):
                                 self.attach_req_timestamp = None
                             # '41' indicates Attach reject
                             elif field.get('value') == '68':
+                                print("ATT reject")
                                 for child_field in log_xml.iter('field'):
                                     if child_field.get('name') == 'nas_eps.emm.cause':
                                         cause_idx = str(child_field.get('show'))
@@ -134,6 +141,7 @@ class AttachFrAnalyzer(KpiAnalyzer):
                                                 if subfield.get('showname') and 'T3346' in subfield.get('showname'):
                                                     self.kpi_measurements['failure_number']['EMM'] += 1
                                                     self.store_kpi('KPI_Retainability_ATTACH_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
+                                                    self.log_warning("EMM cause: " + cause_idx)
                                         else:
                                             self.kpi_measurements['failure_number']['EMM'] += 1
                                             self.store_kpi('KPI_Retainability_ATTACH_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
@@ -174,6 +182,7 @@ class AttachFrAnalyzer(KpiAnalyzer):
                     if field.get('name') == "nas_eps.nas_msg_emm_type":
                         if field.get('show') == '65':
                             # Attach request, referring to http://niviuk.free.fr/lte_nas.php
+                            print("ATT REQ")
                             if self.pending_attach or self.accepting_attach:
                                 delta = 0
                                 if self.pending_attach:
@@ -244,6 +253,7 @@ class AttachFrAnalyzer(KpiAnalyzer):
 
                         elif field.get('show') == '67':
                             # Attach complete, referring to http://niviuk.free.fr/lte_nas.php
+                            print("ATT complete")
                             if self.attach_accept_timestamp:
                                 delta = (log_item_dict['timestamp'] - self.attach_accept_timestamp).total_seconds()
                                 if 0 <= delta <= self.threshold:
@@ -253,14 +263,21 @@ class AttachFrAnalyzer(KpiAnalyzer):
                                     self.prev_log = None
 
                         elif field.get('show') == '69':
+                            print("DET req")
                             # Detach request to network, referring to http://niviuk.free.fr/lte_nas.php
                             if self.pending_attach or self.accepting_attach:
-                                self.kpi_measurements['failure_number']['DETACH'] += 1
-                                self.store_kpi("KPI_Retainability_ATTACH_DETACH_FAILURE", str(self.kpi_measurements['failure_number']['DETACH']), log_item_dict['timestamp'])
-                                self.accepting_attach = False
-                                self.pending_attach = False
-                                self.prev_log = None
-                                self.timeouts = 0
-                                self.attach_accept_timestamp = None
-                                self.attach_req_timestamp = None
+                                delta = 0
+                                if self.pending_attach:
+                                    delta = (log_item_dict['timestamp'] - self.attach_req_timestamp).total_seconds()
+                                else:
+                                    delta = (log_item_dict['timestamp'] - self.attach_accept_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    self.kpi_measurements['failure_number']['DETACH'] += 1
+                                    self.store_kpi("KPI_Retainability_ATTACH_DETACH_FAILURE", str(self.kpi_measurements['failure_number']['DETACH']), log_item_dict['timestamp'])
+                                    self.accepting_attach = False
+                                    self.pending_attach = False
+                                    self.prev_log = None
+                                    self.timeouts = 0
+                                    self.attach_accept_timestamp = None
+                                    self.attach_req_timestamp = None
         return 0

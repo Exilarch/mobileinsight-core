@@ -13,6 +13,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 from .kpi_analyzer import KpiAnalyzer
+import datetime
 
 # full list refer to Table 9.9.3.9.1 in TS 24.301
 EMM_cause = {'3': 'ILL_UE',
@@ -61,7 +62,11 @@ class DetachAnalyzer(KpiAnalyzer):
         self.prev_log = None
         self.timeouts = 0
         self.threshold = 30 # Messages must be within this time threshold for certain failures
-
+        # Maintain timestamps of unfinished procedures for a potential handover failure.
+        self.handover_timestamps = {}
+        for process in ["Identification", "Security", "GUTI", "Authentication", "Attach", "Detach", "TAU"]:
+            self.handover_timestamps[process] = datetime.datetime.min
+            
         # add callback function
         self.add_source_callback(self.__emm_sr_callback)
 
@@ -101,14 +106,13 @@ class DetachAnalyzer(KpiAnalyzer):
                             for subfield in log_xml.iter("field"):
                                 if subfield.get('name') == 'nas_eps.emm.cause':
                                     cause_idx = str(subfield.get('show'))
-                                    if cause_idx == "25":
-                                        self.kpi_measurements['failure_number']['EMM'] += 1
-                                        self.store_kpi('KPI_Retainability_DETACH_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
-                                        self.timeouts = 0
-                                    else:
-                                        self.kpi_measurements['failure_number']['EMM'] += 1
-                                        self.store_kpi('KPI_Retainability_TAU_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
-                                        self.log_warning("EMM cause: " + cause_idx)
+                                    self.kpi_measurements['failure_number']['EMM'] += 1
+                                    self.store_kpi('KPI_Retainability_DETACH_EMM_FAILURE', str(self.kpi_measurements['failure_number']['EMM']), log_item_dict['timestamp'])
+                                    self.log_warning("EMM cause: " + cause_idx)
+                                    self.timeouts = 0
+                                    self.pending_detach = False
+                                    self.prev_log = None
+                                    self.detach_req_timestamp = None
                             if self.detach_req_timestamp:
                                 delta = (log_item_dict['timestamp'] - self.detach_req_timestamp).total_seconds()
                                 if 0 <= delta <= self.threshold:
