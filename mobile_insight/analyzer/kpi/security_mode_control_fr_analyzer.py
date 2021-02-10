@@ -69,7 +69,7 @@ class SecurityModeControlFrAnalyzer(KpiAnalyzer):
         self.pending_TAU = False
         self.prev_log = None
         self.security_mode_timestamp = None
-        self.handover_timestmaps["Security"] = datetime.datetime.min
+        self.handover_timestamps["Security"] = datetime.datetime.min
 
     def __emm_sr_callback(self, msg):
         """
