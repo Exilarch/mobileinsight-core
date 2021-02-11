@@ -24,7 +24,7 @@ Then run the corresponding installation script (note: do not run with root privi
 
 The install script will install MobileInsight package to your `PYTHONPATH`, install MobileInsight GUI to `/usr/local/bin/mi-gui`, and run an offline analysis example at the end.
 
-Next, move these files out of the repository folder:
+Next, move these files out of the repository folder and into the parent folder of the repository folder:
 
 kpi-manager-test.py
 
