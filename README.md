@@ -25,10 +25,15 @@ Then run the corresponding installation script (note: do not run with root privi
 The install script will install MobileInsight package to your `PYTHONPATH`, install MobileInsight GUI to `/usr/local/bin/mi-gui`, and run an offline analysis example at the end.
 
 Next, move these files out of the repository folder:
+
 kpi-manager-test.py
+
 auth_sample.mi2log
+
 attach_sample.mi2log
+
 tau_sample.mi2log
+
 detach_sample.mi2log
 
 Then run kpi-manager-test.py with proper arguments. See comments in kpi-manager-test.py for more instructions.
@@ -37,11 +42,17 @@ The analyzers I developed will be created and ran to detect failures for the cel
 The analyzers I developed in question are:
 
 identification_analyzer.py
+
 auth_fr_analyzer.py
+
 security_mode_control_fr_analyzer.py
+
 guti_reallocation_fr_analyzer.py
+
 attach_fr_analyzer.py
+
 detach_analyzer.py
+
 tau_fr_analyzer.py
 
 These analyzers are all located in mobileinsight-core/mobile_insight/analyzer/kpi
