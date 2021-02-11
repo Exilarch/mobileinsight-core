@@ -168,48 +168,52 @@ class IdentificationAnalyzer(KpiAnalyzer):
                         # Attach request
                         if field.get("show") == "65":
                             if self.pending_id and not self.pending_attach:
-                                self.kpi_measurements["failure_number"]["COLLISION"] += 1
-                                self.store_kpi("KPI_Retainability_IDENTIFY_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
-                                self.__reset_parameters()
+                                delta = (curr_timestamp - self.identify_req_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    self.kpi_measurements["failure_number"]["COLLISION"] += 1
+                                    self.store_kpi("KPI_Retainability_IDENTIFY_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
+                                    self.__reset_parameters()
                             # failure case, different 2nd attach req with pending attach and pending ID
                             elif self.pending_id and self.pending_attach:
-                                prev_IE = {}
-                                curr_IE = {}
-                                # compile and compare information elements
-                                for prev_field in self.prev_attach_log.iter("field"):
-                                    if prev_field.get("name") == "nas_eps.emm.eps_att_type":
-                                        prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                    elif prev_field.get("name") == "nas_eps.emm.esm_msg_cont":
-                                        prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                    elif prev_field.get("name") == "nas_eps.emm.type_of_id":
-                                        prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                    elif prev_field.get("name") == "gsm_a.gm.gmm.ue_usage_setting":
-                                        prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                    elif prev_field.get("show") == "EPS mobile identity":
-                                        prev_IE[prev_field.get("show")] = prev_field.get("showname")
-                                    elif prev_field.get("show") == "UE network capability":
-                                        prev_IE[prev_field.get("show")] = prev_field.get("showname")
-                                    elif prev_field.get("show") == "DRX parameter":
-                                        prev_IE[prev_field.get("show")] = prev_field.get("showname") 
-                                for field in log_xml.iter("field"):
-                                    if field.get("name") == "nas_eps.emm.eps_att_type":
-                                        curr_IE[field.get("name")] = field.get("showname")
-                                    elif field.get("name") == "nas_eps.emm.esm_msg_cont":
-                                        curr_IE[field.get("name")] = field.get("showname")
-                                    elif field.get("name") == "nas_eps.emm.type_of_id":
-                                        curr_IE[field.get("name")] = field.get("showname")
-                                    elif field.get("name") == "gsm_a.gm.gmm.ue_usage_setting":
-                                        curr_IE[field.get("name")] = field.get("showname")
-                                    elif field.get("show") == "EPS mobile identity":
-                                        curr_IE[field.get("show")] = field.get("showname")
-                                    elif field.get("show") == "UE network capability":
-                                        curr_IE[field.get("show")] = field.get("showname")
-                                    elif field.get("show") == "DRX parameter":
-                                        curr_IE[field.get("show")] = field.get("showname")
-                                if prev_IE != curr_IE:
-                                    self.kpi_measurements["failure_number"]["CONCURRENT"] += 1
-                                    self.store_kpi("KPI_Retainability_IDENTIFY_CONCURRENT_FAILURE", str(self.kpi_measurements["failure_number"]["CONCURRENT"]), curr_timestamp)
-                                    self.__reset_parameters()
+                                delta = (curr_timestamp - self.identify_req_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    prev_IE = {}
+                                    curr_IE = {}
+                                    # compile and compare mandatory information elements
+                                    for prev_field in self.prev_attach_log.iter("field"):
+                                        if prev_field.get("name") == "gsm_a.L3_protocol_discriminator":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.security_header_type":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.nas_msg_emm_type":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.emm.eps_att_type":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.emm.nas_key_set_id":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.emm.type_of_id":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.emm.esm_msg_cont":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                    for field in log_xml.iter("field"):
+                                        if field.get("name") == "gsm_a.L3_protocol_discriminator":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.security_header_type":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.nas_msg_emm_type":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.emm.eps_att_type":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.emm.nas_key_set_id":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.emm.type_of_id":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.emm.esm_msg_cont":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                    if prev_IE != curr_IE:
+                                        self.kpi_measurements["failure_number"]["CONCURRENT"] += 1
+                                        self.store_kpi("KPI_Retainability_IDENTIFY_CONCURRENT_FAILURE", str(self.kpi_measurements["failure_number"]["CONCURRENT"]), curr_timestamp)
+                                        self.__reset_parameters()
                             self.attach_req_timestamp = curr_timestamp
                             self.pending_attach = True
                             self.prev_attach_log = log_xml
@@ -221,13 +225,14 @@ class IdentificationAnalyzer(KpiAnalyzer):
                         # Detach request (UE-initiated)
                         elif field.get("show") == "69":
                             if self.pending_id:
-                                # search for switch off
-                                for subfield in log_xml.iter("field"):
-                                    # failure case. detach with switch off field and pending ID.
-                                    if subfield.get("showname") and "Switch off" in subfield.get("showname"):
-                                        self.kpi_measurements["failure_number"]["COLLISION"] += 1
-                                        self.store_kpi("KPI_Retainability_IDENTIFY_COLLISION_FAILURE", self.kpi_measurements["failure_number"]["COLLISION"], curr_timestamp)
-                                        self.__reset_parameters()
+                                delta = (curr_timestamp - self.identify_req_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    for subfield in log_xml.iter("field"):
+                                        # failure case. detach with switch off field and pending ID.
+                                        if subfield.get("showname") and "Switch off" in subfield.get("showname"):
+                                            self.kpi_measurements["failure_number"]["COLLISION"] += 1
+                                            self.store_kpi("KPI_Retainability_IDENTIFY_COLLISION_FAILURE", self.kpi_measurements["failure_number"]["COLLISION"], curr_timestamp)
+                                            self.__reset_parameters()
                         # Detach accept (network-initiated)
                         elif field.get("show") == "70":
                             self.handover_timestamps["Detach"] = datetime.datetime.min

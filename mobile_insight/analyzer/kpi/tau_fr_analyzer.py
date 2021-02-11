@@ -39,7 +39,7 @@ class TauFrAnalyzer(KpiAnalyzer):
         self.prev_log = None
         self.T3430 = 15 # in WB-S1 mode, T3430 should be 77 seconds. Default, 15s, is assumed.
         self.T3450 = 6 # in WB-S1 mode, T3450 should be 18 seconds. Default value, 6s, is assumed.
-        self.threshold = 30 # Messages must be within this time threshold for certain failures
+        self.threshold = 60 # Messages must be within this time threshold for certain failures
 
         # Maintain timestamps of unfinished procedures for a potential handover failure.
         self.handover_timestamps = {}
@@ -97,19 +97,25 @@ class TauFrAnalyzer(KpiAnalyzer):
                     if field.get("name") == "nas_eps.nas_msg_emm_type":
                         # Detach request (network-initiated)
                         if field.get("show") == "69":
-                            if self.pending_TAU and self.TAU_req_timestamp:
-                                for subfield in log_xml.iter("field"):
-                                    detach_type = ""
-                                    cause_idx = -1
-                                    if subfield.get("showname") and "re-attach" in subfield.get("showname").lower():
-                                        detach_type = subfield.get("showname").lower()
-                                    elif subfield.get("name") == "nas_eps.emm.cause":
-                                        cause_idx = str(subfield.get("show"))
-                                # failure case. detach with these conditions
-                                if ("re-attach not required" in detach_type and cause_idx != 2) or ("re-attach required" in detach_type):
-                                    self.kpi_measurements["failure_number"]["DETACH"] += 1
-                                    self.store_kpi("KPI_Retainability_TAU_DETACH_FAILURE", str(self.kpi_measurements["failure_number"]["CONCURRENT"]), curr_timestamp)
-                                    self.__reset_parameters()
+                            if self.pending_TAU or self.accepting_TAU:
+                                delta = 0
+                                if self.pending_TAU:
+                                    delta = (curr_timestamp - self.TAU_req_timestamp).total_seconds()
+                                else:
+                                    delta = (curr_timestamp - self.TAU_accept_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    for subfield in log_xml.iter("field"):
+                                        detach_type = ""
+                                        cause_idx = -1
+                                        if subfield.get("showname") and "re-attach" in subfield.get("showname").lower():
+                                            detach_type = subfield.get("showname").lower()
+                                        elif subfield.get("name") == "nas_eps.emm.cause":
+                                            cause_idx = str(subfield.get("show"))
+                                    # failure case. detach with these conditions
+                                    if ("re-attach not required" in detach_type and cause_idx != 2) or ("re-attach required" in detach_type):
+                                        self.kpi_measurements["failure_number"]["DETACH"] += 1
+                                        self.store_kpi("KPI_Retainability_TAU_DETACH_FAILURE", str(self.kpi_measurements["failure_number"]["DETACH"]), curr_timestamp)
+                                        self.__reset_parameters()
                             self.handover_timestamps["Detach"] = curr_timestamp
                         # Detach accept (UE-initiated)
                         if field.get("show") == "70":
@@ -177,16 +183,21 @@ class TauFrAnalyzer(KpiAnalyzer):
                 log_xml = ET.XML(log_item_dict["Msg"])
                 for field in log_xml.iter("field"):
                     if field.get("name") == "nas_eps.nas_msg_emm_type":
-                        # Detach request (UE-intiiated)
+                        # Detach request (UE-initiated)
                         if field.get("show") == "69":
-                            if self.pending_TAU:
-                                # search for switch off
-                                for subfield in log_xml.iter("field"):
-                                    # failure case. detach with switch off field and pending ID.
-                                    if subfield.get("showname") and "Switch off" in subfield.get("showname"):
-                                        self.kpi_measurements["failure_number"]["DETACH"] += 1
-                                        self.store_kpi("KPI_Retainability_TAU_DETACH_FAILURE", self.kpi_measurements["failure_number"]["DETACH"], curr_timestamp)
-                                        self.__reset_parameters()
+                            if self.pending_TAU or self.accepting_TAU:
+                                delta = 0
+                                if self.pending_TAU:
+                                    delta = (curr_timestamp - self.TAU_req_timestamp).total_seconds()
+                                else:
+                                    delta = (curr_timestamp - self.TAU_accept_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    for subfield in log_xml.iter("field"):
+                                        # failure case. detach with switch off field and pending ID.
+                                        if subfield.get("showname") and "Switch off" in subfield.get("showname"):
+                                            self.kpi_measurements["failure_number"]["DETACH"] += 1
+                                            self.store_kpi("KPI_Retainability_TAU_DETACH_FAILURE", self.kpi_measurements["failure_number"]["DETACH"], curr_timestamp)
+                                            self.__reset_parameters()
                             self.handover_timestamps["Detach"] = curr_timestamp
                         # Detach accept (Network-initiated)
                         elif field.get("show") == "70":
@@ -202,33 +213,33 @@ class TauFrAnalyzer(KpiAnalyzer):
                                 if 0 <= delta <= self.threshold:
                                     prev_IE = {}
                                     curr_IE = {}
-                                    # compile information elements
+                                    # compile and compare mandatory information elements
                                     for prev_field in self.prev_log.iter("field"):
-                                        if prev_field.get("name") == "nas_eps.emm.esm_msg_cont":
+                                        if prev_field.get("name") == "gsm_a.L3_protocol_discriminator":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.security_header_type":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.nas_msg_emm_type":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.emm.update_type_value":
+                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
+                                        elif prev_field.get("name") == "nas_eps.emm.nas_key_set_id":
                                             prev_IE[prev_field.get("name")] = prev_field.get("showname")
                                         elif prev_field.get("name") == "nas_eps.emm.type_of_id":
                                             prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                        elif prev_field.get("name") == "gsm_a.gm.gmm.ue_usage_setting":
-                                            prev_IE[prev_field.get("name")] = prev_field.get("showname")
-                                        elif prev_field.get("show") == "EPS mobile identity":
-                                            prev_IE[prev_field.get("show")] = prev_field.get("showname")
-                                        elif prev_field.get("show") == "UE network capability":
-                                            prev_IE[prev_field.get("show")] = prev_field.get("showname")
-                                        elif prev_field.get("show") == "DRX parameter":
-                                            prev_IE[prev_field.get("show")] = prev_field.get("showname") 
                                     for field in log_xml.iter("field"):
-                                        if field.get("name") == "nas_eps.emm.esm_msg_cont":
+                                        if field.get("name") == "gsm_a.L3_protocol_discriminator":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.security_header_type":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.nas_msg_emm_type":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.emm.update_type_value":
+                                            curr_IE[field.get("name")] = field.get("showname")
+                                        elif field.get("name") == "nas_eps.emm.nas_key_set_id":
                                             curr_IE[field.get("name")] = field.get("showname")
                                         elif field.get("name") == "nas_eps.emm.type_of_id":
                                             curr_IE[field.get("name")] = field.get("showname")
-                                        elif field.get("name") == "gsm_a.gm.gmm.ue_usage_setting":
-                                            curr_IE[field.get("name")] = field.get("showname")
-                                        elif field.get("show") == "EPS mobile identity":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                        elif field.get("show") == "UE network capability":
-                                            curr_IE[field.get("show")] = field.get("showname")
-                                        elif field.get("show") == "DRX parameter":
-                                            curr_IE[field.get("show")] = field.get("showname")
                                     if prev_IE != curr_IE:
                                         self.kpi_measurements["failure_number"]["CONCURRENT"] += 1
                                         self.store_kpi("KPI_Retainability_TAU_CONCURRENT_FAILURE", str(self.kpi_measurements["failure_number"]["CONCURRENT"]), curr_timestamp)

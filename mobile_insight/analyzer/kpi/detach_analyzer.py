@@ -36,7 +36,7 @@ class DetachAnalyzer(KpiAnalyzer):
         self.prev_log = None
         self.T3421 = 15 # default 15, 45s in WB-S1 mode
         self.T3422 = 6 # default 6, 24s in WB-S1 mode
-        self.threshold = 30 # Messages must be within this time threshold for certain failures
+        self.threshold = 60 # Messages must be within this time threshold for certain failures
         
         # Maintain timestamps of unfinished procedures for a potential handover failure.
         self.handover_timestamps = {}
@@ -144,19 +144,21 @@ class DetachAnalyzer(KpiAnalyzer):
                         # Attach request
                         if field.get("show") == "65":
                             if self.pending_detach and self.detach_req_timestamp:
-                                for subfield in self.prev_log.iter("field"):
-                                    detach_type = ""
-                                    cause_idx = -1
-                                    if subfield.get("showname"):
-                                        if "re-attach" in subfield.get("showname").lower() or "imsi detach" in subfield.get("showname").lower():
-                                            detach_type = subfield.get("showname").lower()
-                                    elif subfield.get("name") == "nas_eps.emm.cause":
-                                        cause_idx = str(subfield.get("show"))
-                                # failure case. detach with these conditions
-                                if ("re-attach not required" in detach_type and cause_idx != 2) or ("imsi detach" in detach_type and cause_idx != 2) or ("re-attach required" in detach_type):
-                                    self.kpi_measurements["failure_number"]["COLLISION"] += 1
-                                    self.store_kpi("KPI_Retainability_DETACH_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
-                                    self.__reset_parameters()
+                                delta = (curr_timestamp - self.detach_req_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    for subfield in self.prev_log.iter("field"):
+                                        detach_type = ""
+                                        cause_idx = -1
+                                        if subfield.get("showname"):
+                                            if "re-attach" in subfield.get("showname").lower() or "imsi detach" in subfield.get("showname").lower():
+                                                detach_type = subfield.get("showname").lower()
+                                        elif subfield.get("name") == "nas_eps.emm.cause":
+                                            cause_idx = str(subfield.get("show"))
+                                    # failure case. detach with these conditions
+                                    if ("re-attach not required" in detach_type and cause_idx != 2) or ("imsi detach" in detach_type and cause_idx != 2) or ("re-attach required" in detach_type):
+                                        self.kpi_measurements["failure_number"]["COLLISION"] += 1
+                                        self.store_kpi("KPI_Retainability_DETACH_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
+                                        self.__reset_parameters()
                         # Detach request (UE initiated)
                         elif field.get("show") == "69":
                             if self.detach_req_timestamp:
@@ -179,19 +181,21 @@ class DetachAnalyzer(KpiAnalyzer):
                         # Tracking Area Update request
                         elif field.get("show") == "72":
                             if self.pending_detach and self.detach_req_timestamp:
-                                for subfield in self.prev_log.iter("field"):
-                                    detach_type = ""
-                                    cause_idx = -1
-                                    if subfield.get("showname"):
-                                        if "re-attach not required" in subfield.get("showname").lower() or "imsi detach" in subfield.get("showname").lower():
-                                            detach_type = subfield.get("showname").lower()
-                                    elif subfield.get("name") == "nas_eps.emm.cause":
-                                        cause_idx = str(subfield.get("show"))
-                                # failure case. detach with these conditions
-                                if ("re-attach not required" in detach_type and cause_idx == 2) or ("imsi detach" in detach_type):
-                                    self.kpi_measurements["failure_number"]["COLLISION"] += 1
-                                    self.store_kpi("KPI_Retainability_DETACH_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
-                                    self.__reset_parameters()
+                                delta = (curr_timestamp - self.detach_req_timestamp).total_seconds()
+                                if 0 <= delta <= self.threshold:
+                                    for subfield in self.prev_log.iter("field"):
+                                        detach_type = ""
+                                        cause_idx = -1
+                                        if subfield.get("showname"):
+                                            if "re-attach not required" in subfield.get("showname").lower() or "imsi detach" in subfield.get("showname").lower():
+                                                detach_type = subfield.get("showname").lower()
+                                        elif subfield.get("name") == "nas_eps.emm.cause":
+                                            cause_idx = str(subfield.get("show"))
+                                    # failure case. detach with these conditions
+                                    if ("re-attach not required" in detach_type and cause_idx == 2) or ("imsi detach" in detach_type):
+                                        self.kpi_measurements["failure_number"]["COLLISION"] += 1
+                                        self.store_kpi("KPI_Retainability_DETACH_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
+                                        self.__reset_parameters()
                             self.handover_timestamps["TAU"] = curr_timestamp
                         # TAU complete
                         elif field.get("show") == "74":
@@ -221,7 +225,7 @@ class DetachAnalyzer(KpiAnalyzer):
                             last_unfinished_timestamp = max(self.handover_timestamps.values())
                             if last_detach_timestamp == last_unfinished_timestamp:
                                 delta = (curr_timestamp - last_detach_timestamp).total_seconds()
-                                if 0 <= delta <= 600:
+                                if 0 <= delta <= self.threshold:
                                     self.kpi_measurements["failure_number"]["HANDOVER"] += 1
                                     self.store_kpi("KPI_Retainability_DETACH_HANDOVER_FAILURE", self.kpi_measurements["failure_number"]["HANDOVER"], curr_timestamp)
                                     self.__reset_parameters()

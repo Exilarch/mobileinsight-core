@@ -137,7 +137,7 @@ class AuthFrAnalyzer(KpiAnalyzer):
 												self.timeouts = 0
 										if self.timeouts == 5:
 											self.kpi_measurements["failure_number"]["TIMEOUT"] += 1
-											self.store_kpi("KPI_Retainability_AUTH_TIMEOUT_FAILURE", str(self.kpi_measurements["failure_number"]["TRANSMISSION_TAU"]), curr_timestamp)
+											self.store_kpi("KPI_Retainability_AUTH_TIMEOUT_FAILURE", str(self.kpi_measurements["failure_number"]["TIMEOUT"]), curr_timestamp)
 											self.__reset_parameters()
 										self.auth_timestamp = curr_timestamp
 										self.pending_auth = True

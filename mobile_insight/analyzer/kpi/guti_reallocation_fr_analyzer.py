@@ -94,8 +94,7 @@ class GutiReallocationFrAnalyzer(KpiAnalyzer):
                         elif field.get("show") == "80":
                             # check for retransmit
                             if self.pending_guti:
-                                if self.guti_timestamp:
-                                    delta = (curr_timestamp - self.guti_timestamp).total_seconds()
+                                delta = (curr_timestamp - self.guti_timestamp).total_seconds()
                                 if 0 <= delta <= self.T3450:
                                     self.timeouts += 1
                                 else:
