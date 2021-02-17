@@ -39,24 +39,53 @@ detach_sample.mi2log
 Then run kpi-manager-test.py with proper arguments. See comments in kpi-manager-test.py for more instructions.
 The analyzers I developed will be created and ran to detect failures for the cellular network log(s) passed in.
 
-The analyzers I developed in question are:
+## Failure diagnosis background
 
-identification_analyzer.py
+These are a description of the possible failures maintained in kpi_measurements:
 
-auth_fr_analyzer.py
+COLLISION: The ongoing EMM procedure of this analyzer encounters a collision with another EMM procedure of potentially higher priority
 
-security_mode_control_fr_analyzer.py
+CONCURRENT: Either an ongoing tracking area update procedure or attach procedure has encountered a new tracking area update or attach procedure that is distinct from its currently pending procedure.
 
-guti_reallocation_fr_analyzer.py
+DETACH: The ongoing EMM procedure of this analyzer has encountered a detach with certain information elements that require the EMM procedure to abort
 
-attach_fr_analyzer.py
+EMM: The ongoing EMM procedure of this analyzer has encountered a failure related to the EMM cause information element
 
-detach_analyzer.py
+HANDOVER: An ongoing EMM procedure has experienced a handover failure, which can be traced through RRC layer messages
 
-tau_fr_analyzer.py
+MAC: The authentication procedure has experienced a MAC failure
+
+NON_EPS: The authentication procedure has received a failure that non-EPS authentication is unacceptable
+
+PROTOCOL_ERROR: A protocol error has been received during an ongoing EMM procedure
+
+SYNCH: The authentication procedure has experienced a synch failure
+
+TRANSMISSION_TAU: An EMM procedure initiated by Tracking Area Update has experienced transmission failure
+
+TRANSMISSION_SERVICE: An EMM procedure initiated by Service Request has experienced transmission failure
+
+TIMEOUT: The associated timer for the ongoing EMM procedure of this analyzer has timed out five times, and so the EMM procedure will abort.
+
+UNAVAILABLE: The requested identity for the identification procedure has been declared unavailable.
+
+Now, I will list the analyzers I developed in question as well as their potential failures:
+
+identification_fr_analyzer.py (COLLISION, CONCURRENT, HANDOVER, TIMEOUT, TRANSMISSION_SERVICE, TRANSMISSION_TAU, UNAVAILABLE)
+
+auth_fr_analyzer.py (EMM, HANDOVER, MAC, NON_EPS, SYNCH, TIMEOUT, TRANSMISSION_SERVICE, TRANSMISSION_TAU)
+
+security_mode_control_fr_analyzer.py (COLLISION, HANDOVER, TIMEOUT, TRANSMISSION_SERVICE, TRANSMISSION_TAU)
+
+guti_reallocation_fr_analyzer.py (COLLISION, HANDOVER, TIMEOUT)
+
+attach_fr_analyzer.py (CONCURENT, DETACH, EMM, PROTOCOL_ERROR, TIMEOUT)
+
+detach_fr_analyzer.py (COLLISION, EMM, HANDOVER, TIMEOUT)
+
+tau_fr_analyzer.py (CONCURRENT, DETACH, EMM, HANDOVER, PROTOCOL_ERROR, TIMEOUT)
 
 These analyzers are all located in mobileinsight-core/mobile_insight/analyzer/kpi
-
 
 ## MobileInsight dependencies
 
