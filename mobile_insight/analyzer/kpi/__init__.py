@@ -5,7 +5,7 @@ __all__ = [
 		"RrcSrAnalyzer",
 		"HoSrAnalyzer",
 		"AttachSrAnalyzer",
-		"IdentificationAnalyzer",
+		"IdentificationFrAnalyzer",
 		"GutiReallocationFrAnalyzer",
 		"SecurityModeControlFrAnalyzer",
 		"AuthFrAnalyzer",
@@ -13,7 +13,7 @@ __all__ = [
 		"TauFrAnalyzer",
         "DedicatedBearerSrAnalyzer",
 		"TauSrAnalyzer",
-		"DetachAnalyzer",
+		"DetachFrAnalyzer",
 		"ServiceReqSrAnalyzer",
 		"IpDlTputAnalyzer",
 	    "RrcConfigAnalyzer",
@@ -35,7 +35,7 @@ from .kpi_analyzer import KpiAnalyzer
 from .rrc_sr_analyzer import RrcSrAnalyzer
 from .ho_sr_analyzer import HoSrAnalyzer
 from .attach_sr_analyzer import AttachSrAnalyzer
-from .identification_analyzer import IdentificationAnalyzer
+from .identification_fr_analyzer import IdentificationFrAnalyzer
 from .guti_reallocation_fr_analyzer import GutiReallocationFrAnalyzer
 from .security_mode_control_fr_analyzer import SecurityModeControlFrAnalyzer
 from .auth_fr_analyzer import AuthFrAnalyzer
@@ -43,7 +43,7 @@ from .attach_fr_analyzer import AttachFrAnalyzer
 from .tau_fr_analyzer import TauFrAnalyzer
 from .dedicated_bearer_sr_analyzer import DedicatedBearerSrAnalyzer
 from .tau_sr_analyzer import TauSrAnalyzer
-from .detach_analyzer import DetachAnalyzer
+from .detach_fr_analyzer import DetachFrAnalyzer
 from .service_req_sr_analyzer import ServiceReqSrAnalyzer
 from .ip_dl_tput_analyzer import IpDlTputAnalyzer
 from .rrc_config_analyzer import RrcConfigAnalyzer
