@@ -1,4 +1,4 @@
-# Usage: python kpi=manager-test.py [dirname]
+# Usage: python kpi-manager-test.py [dirname]
 # Example 1: python kpi-manager-test.py auth_sample.mi2log 
 # (For testing KPIs related to AUTH)
 # Example 2: python kpi-manager-test.py attach_sample.mi2log 
@@ -11,7 +11,7 @@
 import sys
 import os
 from mobile_insight.monitor import OfflineReplayer
-from mobile_insight.analyzer.kpi import KPIManager, KpiAnalyzer, IdentificationAnalyzer, SecurityModeControlFrAnalyzer, GutiReallocationFrAnalyzer, AuthFrAnalyzer, AttachFrAnalyzer, TauFrAnalyzer, DetachAnalyzer
+from mobile_insight.analyzer.kpi import KPIManager, KpiAnalyzer, IdentificationFrAnalyzer, SecurityModeControlFrAnalyzer, GutiReallocationFrAnalyzer, AuthFrAnalyzer, AttachFrAnalyzer, TauFrAnalyzer, DetachFrAnalyzer
 import cProfile
 
 

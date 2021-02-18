@@ -24,20 +24,11 @@ Then run the corresponding installation script (note: do not run with root privi
 
 The install script will install MobileInsight package to your `PYTHONPATH`, install MobileInsight GUI to `/usr/local/bin/mi-gui`, and run an offline analysis example at the end.
 
-Next, move these files out of the repository folder and into the parent folder of the repository folder:
+Next, to run the analyzers I developed, run the corresponding script:
 
-kpi-manager-test.py
+    ./test-failures.sh
 
-auth_sample.mi2log
-
-attach_sample.mi2log
-
-tau_sample.mi2log
-
-detach_sample.mi2log
-
-Then run kpi-manager-test.py with proper arguments. See comments in kpi-manager-test.py for more instructions.
-The analyzers I developed will be created and ran to detect failures for the cellular network log(s) passed in.
+The analyzers I developed will be created and ran to detect failures for four sample logs. If you would like to run other logs, run kpi-manager-test-fr.py and pass in the appropriate log(s) that you wish to test.
 
 ## Failure diagnosis background
 
