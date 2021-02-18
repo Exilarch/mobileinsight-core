@@ -7,7 +7,21 @@ Mentor: Yunqi Guo [guoyunqi@gmail.com]
 
 In this project, I aim to detect cellular network failure cases, primarily for procedures related to EPS mobility management (EMM). In order to do this, I use MobileInsight, a package for mobile network monitoring and analysis. I process real-world cellular log files with MobileInsight and group failures by category, then store it into the KPI infrastructure built into MobileInsight.
 
-The procedures that I performed failure diagnosis on were identification, authentication, security mode control, GUTI reallocation, attach, detach, and tracking area update.
+The procedures that I performed failure diagnosis on were identification, authentication, security mode control, GUTI reallocation, attach, detach, and tracking area update. Here is a brief description of each type of EMM procedure:
+
+Identification: Network requests user device to provide unique identification for itself
+
+Authentication: Network and user device must undergo mutual authentication with an agreed-upon key
+
+Security mode control: Initialize the usage of an EPS security context
+
+GUTI reallocation: Network allocates a Globally Unique Temporary Identifier (GUTI) to the user device
+
+Attach: A user device requests registration for a particular network
+
+Detach: A user device is deregistered for a particular network
+
+Tracking Area Update: The user device's tracking area is different from the previously registered cell and must be updated
 
 ## Installation
 
