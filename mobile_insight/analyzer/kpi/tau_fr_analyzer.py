@@ -104,15 +104,15 @@ class TauFrAnalyzer(KpiAnalyzer):
                                 else:
                                     delta = (curr_timestamp - self.TAU_accept_timestamp).total_seconds()
                                 if 0 <= delta <= self.threshold:
+                                    detach_type = ""
+                                    cause_idx = -1
                                     for subfield in log_xml.iter("field"):
-                                        detach_type = ""
-                                        cause_idx = -1
-                                        if subfield.get("showname") and "re-attach" in subfield.get("showname").lower():
-                                            detach_type = subfield.get("showname").lower()
+                                        if subfield.get("showname") and "Re-attach" in subfield.get("showname"):
+                                            detach_type = subfield.get("showname")
                                         elif subfield.get("name") == "nas_eps.emm.cause":
                                             cause_idx = str(subfield.get("show"))
                                     # failure case. detach with these conditions
-                                    if ("re-attach not required" in detach_type and cause_idx != 2) or ("re-attach required" in detach_type):
+                                    if ("Re-attach not required" in detach_type and cause_idx != 2) or ("Re-attach required" in detach_type):
                                         self.kpi_measurements["failure_number"]["DETACH"] += 1
                                         self.store_kpi("KPI_Retainability_TAU_DETACH_FAILURE", str(self.kpi_measurements["failure_number"]["DETACH"]), curr_timestamp)
                                         self.__reset_parameters()

@@ -130,15 +130,15 @@ class AttachFrAnalyzer(KpiAnalyzer):
                                 if self.pending_attach and self.attach_req_timestamp:
                                     delta = (curr_timestamp - self.attach_req_timestamp).total_seconds()
                                     if 0 <= delta <= self.threshold:
+                                        detach_type = ""
+                                        cause_idx = -1
                                         for subfield in log_xml.iter("field"):
-                                            detach_type = ""
-                                            cause_idx = -1
-                                            if subfield.get("showname") and "re-attach" in subfield.get("showname").lower():
-                                                detach_type = subfield.get("showname").lower()
+                                            if subfield.get("showname") and "Re-attach" in subfield.get("showname"):
+                                                detach_type = subfield.get("showname")
                                             elif subfield.get("name") == "nas_eps.emm.cause":
                                                 cause_idx = str(child_field.get("show"))
                                         # failure case if detach under these conditions
-                                        if ("re-attach not required" in detach_type and cause_idx != "2") or ("re-attach required" in detach_type):
+                                        if ("Re-attach not required" in detach_type and cause_idx != "2") or ("Re-attach required" in detach_type):
                                             self.kpi_measurements["failure_number"]["DETACH"] += 1
                                             self.store_kpi("KPI_Retainability_ATTACH_DETACH_FAILURE", str(self.kpi_measurements["failure_number"]["DETACH"]), curr_timestamp)
                                             self.__reset_parameters()

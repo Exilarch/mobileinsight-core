@@ -266,7 +266,7 @@ class IdentificationFrAnalyzer(KpiAnalyzer):
                         mobile_type = field.get("showname")
                         # failure case: requested identity unavailable. covers explicit no ID encoding as 
                         # well as exclusion of possible mobile type encodings.
-                        if "no identity" in mobile_type:
+                        if "no identity" in mobile_type.lower():
                             self.kpi_measurements["failure_number"]["UNAVAILABLE"] += 1
                             self.store_kpi("KPI_Retainability_IDENTIFY_UNAVAILABLE_FAILURE", self.kpi_measurements["failure_number"]["UNAVAILABLE"], curr_timestamp)
                             self.__reset_parameters()          

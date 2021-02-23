@@ -146,16 +146,16 @@ class DetachFrAnalyzer(KpiAnalyzer):
                             if self.pending_detach and self.detach_req_timestamp:
                                 delta = (curr_timestamp - self.detach_req_timestamp).total_seconds()
                                 if 0 <= delta <= self.threshold:
+                                    detach_type = ""
+                                    cause_idx = -1
                                     for subfield in self.prev_log.iter("field"):
-                                        detach_type = ""
-                                        cause_idx = -1
                                         if subfield.get("showname"):
-                                            if "re-attach" in subfield.get("showname").lower() or "imsi detach" in subfield.get("showname").lower():
-                                                detach_type = subfield.get("showname").lower()
+                                            if "Re-attach" in subfield.get("showname") or "IMSI detach (2)" in subfield.get("showname"):
+                                                detach_type = subfield.get("showname")
                                         elif subfield.get("name") == "nas_eps.emm.cause":
                                             cause_idx = str(subfield.get("show"))
                                     # failure case. detach with these conditions
-                                    if ("re-attach not required" in detach_type and cause_idx != 2) or ("imsi detach" in detach_type and cause_idx != 2) or ("re-attach required" in detach_type):
+                                    if ("Re-attach not required" in detach_type and cause_idx != 2) or ("IMSI detach (2)" in detach_type and cause_idx != 2) or ("Re-attach required" in detach_type):
                                         self.kpi_measurements["failure_number"]["COLLISION"] += 1
                                         self.store_kpi("KPI_Retainability_DETACH_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
                                         self.__reset_parameters()
@@ -183,16 +183,16 @@ class DetachFrAnalyzer(KpiAnalyzer):
                             if self.pending_detach and self.detach_req_timestamp:
                                 delta = (curr_timestamp - self.detach_req_timestamp).total_seconds()
                                 if 0 <= delta <= self.threshold:
+                                    detach_type = ""
+                                    cause_idx = -1
                                     for subfield in self.prev_log.iter("field"):
-                                        detach_type = ""
-                                        cause_idx = -1
                                         if subfield.get("showname"):
-                                            if "re-attach not required" in subfield.get("showname").lower() or "imsi detach" in subfield.get("showname").lower():
-                                                detach_type = subfield.get("showname").lower()
+                                            if "Re-attach not required" in subfield.get("showname") or "IMSI detach (2)" in subfield.get("showname"):
+                                                detach_type = subfield.get("showname")
                                         elif subfield.get("name") == "nas_eps.emm.cause":
                                             cause_idx = str(subfield.get("show"))
                                     # failure case. detach with these conditions
-                                    if ("re-attach not required" in detach_type and cause_idx == 2) or ("imsi detach" in detach_type):
+                                    if ("Re-attach not required" in detach_type and cause_idx == 2) or ("IMSI detach (2)" in detach_type):
                                         self.kpi_measurements["failure_number"]["COLLISION"] += 1
                                         self.store_kpi("KPI_Retainability_DETACH_COLLISION_FAILURE", str(self.kpi_measurements["failure_number"]["COLLISION"]), curr_timestamp)
                                         self.__reset_parameters()
